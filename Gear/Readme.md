@@ -8,16 +8,6 @@ A parametric circular gear disc built using [build123d](https://github.com/gumyr
 pip install build123d ocp-vscode
 ```
 
-## Running
-
-```bash
-python circle_with_cutout.py
-```
-
-Open the OCP CAD Viewer panel in VS Code to see the result. A save dialog will appear to export the model as a STEP file.
-
----
-
 ## Overview
 
 The model assembles four components into a single solid body — a toothed gear disc, a rectangular boss, an arc wedge, and an outer ring.
