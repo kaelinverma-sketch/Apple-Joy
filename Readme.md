@@ -8,16 +8,6 @@ A parametric 3D model built using [build123d](https://github.com/gumyr/build123d
 pip install build123d ocp-vscode
 ```
 
-## Running
-
-```bash
-python "Apple_Joy top.py"
-```
-
-Open the OCP CAD Viewer panel in VS Code to see the result.
-
----
-
 ## Overview
 
 The model is a structural U-channel assembly built entirely in Python using parametric CAD. It consists of two boolean-unioned bodies displayed as a single solid.
