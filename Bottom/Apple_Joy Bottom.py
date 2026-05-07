@@ -83,6 +83,35 @@ with BuildPart() as final_body:
     )
     chamfer(cut_bottom_edges, length=5.9, length2=5.9)  # 45deg, slant=~8.34mm (near max for 12mm cut)
 
+    # Fillet on 510mm edges along Z at XZ plane face (Y=0)
+    z_edges_y0 = final_body.edges().filter_by(
+        lambda e: abs(e.length - DEPTH) < 0.5 and abs(e.center().Y) < 0.5
+    )
+    fillet(z_edges_y0, radius=20)
+
+    # Chamfer on outer front face edges (Z=0), one at a time
+    front_edge_lengths = [104.713, 104.918, 33.0, 33.56]
+    for edge_len in front_edge_lengths:
+        edges = final_body.edges().filter_by(
+            lambda e, l=edge_len: abs(e.center().Z) < 0.5 and abs(e.length - l) < 0.1
+        )
+        if len(edges) > 0:
+            try:
+                chamfer(edges, length=12)
+            except Exception as ex:
+                print(f"Front chamfer failed for length={edge_len}: {ex}")
+
+    # Chamfer on outer back face edges (Z=510), one at a time
+    for edge_len in front_edge_lengths:
+        edges = final_body.edges().filter_by(
+            lambda e, l=edge_len: abs(e.center().Z - DEPTH) < 0.5 and abs(e.length - l) < 0.1
+        )
+        if len(edges) > 0:
+            try:
+                chamfer(edges, length=12)
+            except Exception as ex:
+                print(f"Back chamfer failed for length={edge_len}: {ex}")
+
     # Chamfer on floor cut opening edges
     floor_open_edges = final_body.edges().filter_by(
         lambda e: abs(e.length - 314) < 0.5 and abs(e.center().Y - FLOOR_Y) < 0.5
@@ -90,13 +119,13 @@ with BuildPart() as final_body:
     chamfer(floor_open_edges, length=floor_chamfer_len, length2=floor_chamfer_len)
 
     # Solid cylinder
-    cyl_plane = Plane(origin=(189.7, 25, 310.45), x_dir=(1,0,0), z_dir=(0,1,0))
+    cyl_plane = Plane(origin=(169.03, 25, 310.45), x_dir=(1,0,0), z_dir=(0,1,0))
     with BuildSketch(cyl_plane):
         Circle(64.6 / 2)
     extrude(amount=86, mode=Mode.ADD)
 
     # Through hole from cylinder center (dia=35mm, all through in both Y directions)
-    hole_plane = Plane(origin=(189.7, 0, 310.45), x_dir=(1,0,0), z_dir=(0,1,0))
+    hole_plane = Plane(origin=(169.03, 0, 310.45), x_dir=(1,0,0), z_dir=(0,1,0))
     with BuildSketch(hole_plane):
         Circle(35 / 2)
     extrude(amount=500, both=True, mode=Mode.SUBTRACT)
@@ -114,7 +143,7 @@ with BuildPart() as final_body:
                    abs(e.length - 38.750) < 0.5 or
                    abs(e.length - 14.600) < 0.5)
     )
-    fillet(floor_cut_edges, radius=5)
+    fillet(floor_cut_edges, radius=12)
 
     # Chamfer on inner circular cut edge (at Y=0)
     circular_edge = final_body.edges().filter_by(
@@ -123,7 +152,7 @@ with BuildPart() as final_body:
     chamfer(circular_edge, length=5)
 
     # Triangular wedge
-    with BuildSketch(Plane.YZ.offset(189.7 - 32)):
+    with BuildSketch(Plane.YZ.offset(137.03)):
         with BuildLine():
             Polyline(
                 Vector(25,        310.45 - 43 + 75),
@@ -138,12 +167,18 @@ with BuildPart() as final_body:
     wedge_hyp_edges = final_body.edges().filter_by(
         lambda e: abs(e.length - 117.486) < 0.5
     )
-    fillet(wedge_hyp_edges, radius=15)
+    try:
+        fillet(wedge_hyp_edges, radius=15)
+    except Exception:
+        try:
+            fillet(wedge_hyp_edges, radius=10)
+        except Exception as ex:
+            print(f"Wedge fillet failed: {ex}")
 
 # ── Rectangle separate body ───────────────────────────────────────────────────
 with BuildPart() as rect_body:
     rect_plane = Plane(
-        origin=(189.7 - 32, 27 + 42 - 3, 310.45 + 32.3 - 16.2),
+        origin=(137.03, 27 + 42 - 3, 310.45 + 32.3 - 16.2),
         x_dir=(0, 1, 0),
         z_dir=(1, 0, 0),
     )
@@ -158,13 +193,17 @@ with BuildPart() as rect_body:
     fillet(rect_bottom_edges, radius=20)
 
     # Through hole (dia=35mm) matching the one in final_body
-    hole_plane_r = Plane(origin=(189.7, 0, 310.45), x_dir=(1,0,0), z_dir=(0,1,0))
+    hole_plane_r = Plane(origin=(169.03, 0, 310.45), x_dir=(1,0,0), z_dir=(0,1,0))
     with BuildSketch(hole_plane_r):
         Circle(35 / 2)
     extrude(amount=500, both=True, mode=Mode.SUBTRACT)
 
 # ── Single combined body ──────────────────────────────────────────────────────
 combined = final_body.part + rect_body.part
+
+# ── Move origin to bounding box minimum corner ───────────────────────────────
+bb = combined.bounding_box()
+combined = combined.moved(Location(Vector(-bb.min.X, -bb.min.Y, -bb.min.Z)))
 
 # ── Export to STEP with file dialog ──────────────────────────────────────────
 import tkinter as tk
